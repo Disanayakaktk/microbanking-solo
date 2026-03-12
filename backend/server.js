@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import db from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
 import customerRoutes from './routes/customerRoutes.js';
+import accountRoutes from './routes/accountRoutes.js';
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ app.use(morgan('dev'));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
+app.use('/api/accounts', accountRoutes);
 
 // Test route
 app.get('/api/health', (req, res) => {
