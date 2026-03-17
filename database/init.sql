@@ -55,7 +55,7 @@ create table fd_plans (
     fd_plan_id serial primary key,
     fd_options fd_options_enum not null,
     interest decimal(5,2) not null,
-    created_at timestamp
+    created_at timestamp default current_timestamp
 );
 
 -- Create saving_plans table
@@ -64,7 +64,7 @@ create table saving_plans (
     plan_type plan_type_enum not null,
     interest decimal(5,2) not null,
     min_balance decimal(10,2) not null,
-    created_at timestamp
+    created_at timestamp default current_timestamp
 );
 
 
@@ -74,7 +74,7 @@ create table saving_plans (
 create table branch (
     branch_id serial primary key,
     branch_name varchar(50) not null,
-    created_at timestamp,
+    created_at timestamp default current_timestamp,
     contact_id int references contact(contact_id) on delete set null
 );
 
@@ -86,7 +86,7 @@ create table customers (
     gender gender_enum not null,
     nic varchar(30) not null unique,
     date_of_birth date not null,
-    created_at timestamp,
+    created_at timestamp default current_timestamp,
     contact_id int references contact(contact_id) on delete set null
 );
 
@@ -97,7 +97,7 @@ create table fixed_deposits (
     auto_renewal boolean not null,
     fd_status fd_status_enum not null,
     open_date date not null,
-    created_at timestamp,
+    created_at timestamp default current_timestamp,
     fd_plan_id int references fd_plans(fd_plan_id) on delete set null
 );
 
@@ -112,7 +112,7 @@ create table employees (
     nic varchar(15) not null unique,
     gender gender_enum not null,
     date_of_birth date not null,
-    created_at timestamp,
+    created_at timestamp default current_timestamp,
     branch_id int references branch(branch_id) on delete set null,
     contact_id int references contact(contact_id) on delete set null
 );
@@ -162,7 +162,7 @@ create table fd_interest_calculation (
     days_in_period int not null,
     credited_at timestamp,
     status calculation_status_enum not null,
-    created_at timestamp,
+    created_at timestamp default current_timestamp,
     fd_id int references fixed_deposits(fd_id) on delete cascade,
     credited_to_account_id int references accounts(account_id) on delete set null
 );

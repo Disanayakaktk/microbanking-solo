@@ -7,6 +7,8 @@ import authRoutes from './routes/authRoutes.js';
 import customerRoutes from './routes/customerRoutes.js';
 import accountRoutes from './routes/accountRoutes.js';
 import transactionRoutes from './routes/transactionRoutes.js';
+import fdRoutes from './routes/fdRoutes.js';
+import './schedulers/interestScheduler.js'; // This starts the automatic scheduler
 
 dotenv.config();
 
@@ -22,6 +24,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/fd', fdRoutes);
+
+
+
+console.log('⏰ Interest scheduler loaded');
 
 // Test route
 app.get('/api/health', (req, res) => {
