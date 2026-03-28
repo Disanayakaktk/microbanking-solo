@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0F6E56"/>
+      <stop offset="100%" stop-color="#04342C"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FAC775"/>
+      <stop offset="100%" stop-color="#BA7517"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(50, 48)">
+
+    <!-- Shield -->
+    <path d="M0,-43 L30,-34 L35,2 L27,24 Q18,39 0,46 Q-18,39 -27,24 L-35,2 L-30,-34 Z"
+          fill="url(#shieldGrad)" stroke="#1D9E75" stroke-width="0.8"/>
+
+    <!-- Inner border -->
+    <path d="M0,-37 L26,-29 L30,2 L23,20 Q15,34 0,40 Q-15,34 -23,20 L-30,2 L-26,-29 Z"
+          fill="none" stroke="#5DCAA5" stroke-width="0.5" opacity="0.4"/>
+
+    <!-- Lotus petals -->
+    <ellipse cx="0" cy="10" rx="5" ry="11" fill="#FAC775" opacity="0.9"/>
+    <ellipse cx="-11" cy="4" rx="5" ry="11" fill="#FAC775" opacity="0.85" transform="rotate(-72,-11,4)"/>
+    <ellipse cx="-7" cy="-10" rx="5" ry="11" fill="#FAC775" opacity="0.8" transform="rotate(-144,-7,-10)"/>
+    <ellipse cx="7" cy="-10" rx="5" ry="11" fill="#FAC775" opacity="0.8" transform="rotate(144,7,-10)"/>
+    <ellipse cx="11" cy="4" rx="5" ry="11" fill="#FAC775" opacity="0.85" transform="rotate(72,11,4)"/>
+
+    <!-- Center circle -->
+    <circle cx="0" cy="1" r="7" fill="url(#goldGrad)" stroke="#0F6E56" stroke-width="0.6"/>
+
+    <!-- Rising bars -->
+    <rect x="-3" y="-1" width="1.8" height="4" rx="0.5" fill="#04342C"/>
+    <rect x="-0.8" y="-3" width="1.8" height="6" rx="0.5" fill="#04342C"/>
+    <rect x="1.5" y="-5" width="1.8" height="8" rx="0.5" fill="#04342C"/>
+
+    <!-- Flame crest -->
+    <path d="M0,-27 Q1.5,-22 0,-19 Q-1.5,-22 0,-27Z" fill="#FAC775"/>
+    <path d="M-8,-25 Q-4,-20 -5,-17 Q-8,-19 -8,-25Z" fill="#FAC775" opacity="0.7"/>
+    <path d="M8,-25 Q4,-20 5,-17 Q8,-19 8,-25Z" fill="#FAC775" opacity="0.7"/>
+
+    <!-- Bottom banner -->
+    <rect x="-26" y="29" width="52" height="16" rx="1.5" fill="#FAC775"/>
+    <text x="0" y="36" text-anchor="middle" font-family="Georgia,serif" font-size="4.2"
+          font-weight="700" fill="#04342C" letter-spacing="0.4">LANKA</text>
+    <text x="0" y="42.5" text-anchor="middle" font-family="Georgia,serif" font-size="3.5"
+          font-weight="700" fill="#04342C" letter-spacing="0.3">MICROBANK</text>
+
+  </g>
+</svg>
