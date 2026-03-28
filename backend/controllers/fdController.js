@@ -10,12 +10,15 @@ const fdController = {
     createPlan: async (req, res) => {
         try {
             const { fd_options, interest, min_amount, penalty_rate } = req.body;
+            const parsedInterest = parseFloat(interest);
+            const parsedMinAmount = parseFloat(min_amount);
+            const parsedPenaltyRate = parseFloat(penalty_rate);
 
             // Validation
-            if (!fd_options || !interest) {
+            if (!fd_options || !interest || !min_amount || !penalty_rate) {
                 return res.status(400).json({
                     success: false,
-                    message: 'FD options and interest rate are required'
+                    message: 'FD options, interest rate, minimum amount, and penalty rate are required'
                 });
             }
 
@@ -27,18 +30,32 @@ const fdController = {
                 });
             }
 
-            if (interest <= 0 || interest > 20) {
+            if (Number.isNaN(parsedInterest) || parsedInterest <= 0 || parsedInterest > 20) {
                 return res.status(400).json({
                     success: false,
                     message: 'Interest rate must be between 0 and 20%'
                 });
             }
 
+            if (Number.isNaN(parsedMinAmount) || parsedMinAmount <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Minimum amount must be greater than 0'
+                });
+            }
+
+            if (Number.isNaN(parsedPenaltyRate) || parsedPenaltyRate < 0 || parsedPenaltyRate > 100) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Penalty rate must be between 0 and 100%'
+                });
+            }
+
             const plan = await fdModel.createPlan({
                 fd_options,
-                interest,
-                min_amount: min_amount || 10000,
-                penalty_rate: penalty_rate || 1.0
+                interest: parsedInterest,
+                min_amount: parsedMinAmount,
+                penalty_rate: parsedPenaltyRate
             });
 
             res.status(201).json({
@@ -109,6 +126,9 @@ const fdController = {
         try {
             const { id } = req.params;
             const { fd_options, interest, min_amount, penalty_rate } = req.body;
+            const parsedInterest = interest !== undefined ? parseFloat(interest) : undefined;
+            const parsedMinAmount = min_amount !== undefined ? parseFloat(min_amount) : undefined;
+            const parsedPenaltyRate = penalty_rate !== undefined ? parseFloat(penalty_rate) : undefined;
 
             // Check if plan exists
             const existingPlan = await fdModel.getPlanById(id);
@@ -119,11 +139,32 @@ const fdController = {
                 });
             }
 
+            if (parsedInterest !== undefined && (Number.isNaN(parsedInterest) || parsedInterest <= 0 || parsedInterest > 20)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Interest rate must be between 0 and 20%'
+                });
+            }
+
+            if (parsedMinAmount !== undefined && (Number.isNaN(parsedMinAmount) || parsedMinAmount <= 0)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Minimum amount must be greater than 0'
+                });
+            }
+
+            if (parsedPenaltyRate !== undefined && (Number.isNaN(parsedPenaltyRate) || parsedPenaltyRate < 0 || parsedPenaltyRate > 100)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Penalty rate must be between 0 and 100%'
+                });
+            }
+
             const updatedPlan = await fdModel.updatePlan(id, {
                 fd_options,
-                interest,
-                min_amount,
-                penalty_rate
+                interest: parsedInterest,
+                min_amount: parsedMinAmount,
+                penalty_rate: parsedPenaltyRate
             });
 
             res.json({

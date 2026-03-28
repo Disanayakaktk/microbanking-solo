@@ -4,6 +4,7 @@ DROP TYPE IF EXISTS gender_enum CASCADE;
 DROP TYPE IF EXISTS plan_type_enum CASCADE;
 DROP TYPE IF EXISTS fd_options_enum CASCADE;
 DROP TYPE IF EXISTS employee_position_enum CASCADE;
+DROP TYPE IF EXISTS employee_status_enum CASCADE;
 DROP TYPE IF EXISTS transaction_type_enum CASCADE;
 DROP TYPE IF EXISTS calculation_status_enum CASCADE;
 DROP TYPE IF EXISTS fd_status_enum CASCADE;
@@ -14,6 +15,7 @@ CREATE TYPE gender_enum AS ENUM ('male', 'female', 'other');
 CREATE TYPE plan_type_enum AS ENUM ('Children', 'Teen', 'Adult', 'Senior', 'Joint');
 CREATE TYPE fd_options_enum AS ENUM ('6 months', '1 year', '3 years', '5 years');
 CREATE TYPE employee_position_enum AS ENUM ('Manager', 'Agent', 'Admin');
+CREATE TYPE employee_status_enum AS ENUM ('Active', 'Inactive');
 CREATE TYPE transaction_type_enum AS ENUM ('Deposit', 'Withdrawal', 'Interest Credit');
 CREATE TYPE calculation_status_enum AS ENUM ('pending', 'completed');
 CREATE TYPE fd_status_enum AS ENUM ('active', 'matured', 'closed');
@@ -55,6 +57,8 @@ create table fd_plans (
     fd_plan_id serial primary key,
     fd_options fd_options_enum not null,
     interest decimal(5,2) not null,
+    min_amount decimal(12,2) not null default 10000,
+    penalty_rate decimal(5,2) not null default 1.00,
     created_at timestamp default current_timestamp
 );
 
@@ -105,6 +109,7 @@ create table fixed_deposits (
 create table employees (
     employee_id serial primary key,
     position employee_position_enum not null,
+    status employee_status_enum not null default 'Active',
     username varchar(50) not null unique,
     password varchar(255) not null,
     first_name varchar(50) not null,
@@ -112,6 +117,7 @@ create table employees (
     nic varchar(15) not null unique,
     gender gender_enum not null,
     date_of_birth date not null,
+    last_login timestamp,
     created_at timestamp default current_timestamp,
     branch_id int references branch(branch_id) on delete set null,
     contact_id int references contact(contact_id) on delete set null

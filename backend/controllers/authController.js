@@ -33,17 +33,20 @@ const authController = {
                 });
             }
 
+            // Track last login when column is available
+            await employeeModel.updateLastLogin(employee.employee_id);
+
+            // Get enriched profile payload used by dashboard/system info
+            const profile = await employeeModel.findById(employee.employee_id);
+
             // Generate token
             const token = generateToken(employee);
-
-            // Remove password from response
-            const { password: _, ...employeeWithoutPassword } = employee;
 
             res.json({
                 success: true,
                 message: 'Login successful',
                 token,
-                user: employeeWithoutPassword
+                user: profile
             });
 
         } catch (error) {

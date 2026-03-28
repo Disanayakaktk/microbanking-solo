@@ -14,6 +14,38 @@ VALUES ('John', 'Doe', 'male', '123456788V', '1995-05-15', 1, NOW());
 INSERT INTO saving_plans (plan_type, interest, min_balance, created_at) 
 VALUES ('Adult', 4.0, 1000, NOW());
 
+-- Insert default FD plans
+INSERT INTO fd_plans (fd_options, interest, min_amount, penalty_rate, created_at)
+VALUES
+('6 months', 7.50, 10000, 1.00, NOW()),
+('1 year', 9.00, 10000, 1.00, NOW()),
+('3 years', 12.00, 10000, 1.00, NOW()),
+('5 years', 16.00, 10000, 1.00, NOW());
+
 -- Insert test branch
-INSERT INTO branch (branch_name, created_at) 
-VALUES ('Main Branch', NOW());
+INSERT INTO branch (branch_name, created_at) VALUES 
+('Colombo (Main)', NOW()),
+('Gampaha', NOW()),
+('Kalutara', NOW()),
+('Kandy', NOW()),
+('Matale', NOW()),
+('Nuwara Eliya', NOW()),
+('Galle', NOW()),
+('Matara', NOW()),
+('Hambantota', NOW()),
+('Jaffna', NOW()),
+('Kilinochchi', NOW()),
+('Mannar', NOW()),
+('Vavuniya', NOW()),
+('Mullaitivu', NOW()),
+('Batticaloa', NOW()),
+('Ampara', NOW()),
+('Trincomalee', NOW()),
+('Kurunegala', NOW()),
+('Puttalam', NOW()),
+('Anuradhapura', NOW()),
+('Polonnaruwa', NOW()),
+('Badulla', NOW()),
+('Monaragala', NOW()),
+('Ratnapura', NOW()),
+('Kegalle', NOW());

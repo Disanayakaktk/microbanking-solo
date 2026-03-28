@@ -1,8 +1,5 @@
 import db from '../config/database.js';
 
-const DEFAULT_MIN_FD_AMOUNT = 10000;
-const DEFAULT_FD_PENALTY_RATE = 1.0;
-
 const fdModel = {
     // =============================================
     // FD PLAN MANAGEMENT
@@ -10,18 +7,18 @@ const fdModel = {
 
     // Create new FD plan (Admin only)
     createPlan: async (planData) => {
-        const { fd_options, interest } = planData;
+        const { fd_options, interest, min_amount, penalty_rate } = planData;
         
         const result = await db.query(
-            `INSERT INTO fd_plans (fd_options, interest, created_at) 
-             VALUES ($1, $2, NOW()) 
+            `INSERT INTO fd_plans (fd_options, interest, min_amount, penalty_rate, created_at) 
+             VALUES ($1, $2, $3, $4, NOW()) 
              RETURNING fd_plan_id,
                        fd_options,
                        interest,
                        created_at,
-                       $3::numeric AS min_amount,
-                       $4::numeric AS penalty_rate`,
-            [fd_options, interest, DEFAULT_MIN_FD_AMOUNT, DEFAULT_FD_PENALTY_RATE]
+                       min_amount,
+                       penalty_rate`,
+            [fd_options, interest, min_amount, penalty_rate]
         );
         return result.rows[0];
     },
@@ -33,8 +30,8 @@ const fdModel = {
                     fd_options,
                     interest,
                     created_at,
-                    ${DEFAULT_MIN_FD_AMOUNT}::numeric AS min_amount,
-                    ${DEFAULT_FD_PENALTY_RATE}::numeric AS penalty_rate
+                    min_amount,
+                    penalty_rate
              FROM fd_plans
              ORDER BY 
              CASE fd_options
@@ -54,8 +51,8 @@ const fdModel = {
                     fd_options,
                     interest,
                     created_at,
-                    ${DEFAULT_MIN_FD_AMOUNT}::numeric AS min_amount,
-                    ${DEFAULT_FD_PENALTY_RATE}::numeric AS penalty_rate
+                    min_amount,
+                    penalty_rate
              FROM fd_plans
              WHERE fd_plan_id = $1`,
             [plan_id]
@@ -65,20 +62,22 @@ const fdModel = {
 
     // Update FD plan (Admin only)
     updatePlan: async (plan_id, planData) => {
-        const { fd_options, interest } = planData;
+        const { fd_options, interest, min_amount, penalty_rate } = planData;
         
         const result = await db.query(
             `UPDATE fd_plans 
              SET fd_options = COALESCE($1, fd_options),
-                 interest = COALESCE($2, interest)
-             WHERE fd_plan_id = $3
+                 interest = COALESCE($2, interest),
+                 min_amount = COALESCE($3, min_amount),
+                 penalty_rate = COALESCE($4, penalty_rate)
+             WHERE fd_plan_id = $5
              RETURNING fd_plan_id,
                        fd_options,
                        interest,
                        created_at,
-                       ${DEFAULT_MIN_FD_AMOUNT}::numeric AS min_amount,
-                       ${DEFAULT_FD_PENALTY_RATE}::numeric AS penalty_rate`,
-            [fd_options, interest, plan_id]
+                       min_amount,
+                       penalty_rate`,
+            [fd_options, interest, min_amount, penalty_rate, plan_id]
         );
         return result.rows[0];
     },
@@ -137,7 +136,7 @@ const fdModel = {
                 throw new Error('FD plan not found');
             }
 
-            const minAmount = DEFAULT_MIN_FD_AMOUNT;
+            const minAmount = parseFloat(planCheck.rows[0].min_amount);
             if (fd_balance < minAmount) {
                 throw new Error(`Minimum FD amount is Rs. ${minAmount}`);
             }
@@ -191,8 +190,8 @@ const fdModel = {
             `SELECT fd.*, 
                     fp.fd_options,
                     fp.interest as interest_rate,
-                    ${DEFAULT_MIN_FD_AMOUNT}::numeric AS min_amount,
-                    ${DEFAULT_FD_PENALTY_RATE}::numeric AS penalty_rate,
+                    fp.min_amount,
+                    fp.penalty_rate,
                     a.account_id,
                     a.account_number,
                     a.balance as account_balance,
