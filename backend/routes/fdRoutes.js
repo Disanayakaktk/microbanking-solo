@@ -41,6 +41,14 @@ router.get('/plans/:id', authorize('Admin', 'Manager', 'Agent'), fdController.ge
  */
 router.put('/plans/:id', authorize('Admin'), fdController.updatePlan);
 
+/**
+ * @route   DELETE /api/fd/plans/:id
+ * @desc    Delete FD plan (optionally reassign existing FDs)
+ * @access  Admin only
+ * @query   replacement_plan_id (required if plan is used)
+ */
+router.delete('/plans/:id', authorize('Admin'), fdController.deletePlan);
+
 // =============================================
 // FD INVESTMENT MANAGEMENT
 // =============================================

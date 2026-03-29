@@ -32,13 +32,12 @@ const accountModel = {
             // Generate account number
             const account_number = await accountModel.generateAccountNumber();
 
-            // IMPORTANT: Make sure table name is "accounts" (plural) not "account" (singular)
             const accountResult = await client.query(
                 `INSERT INTO accounts
-                (open_date, account_status, balance, fd_id, branch_id, saving_plan_id, created_at) 
-                VALUES ($1, $2, $3, $4, $5, $6, NOW()) 
-                RETURNING account_id`,
-                [open_date, account_status, balance, fd_id || null, branch_id, saving_plan_id]
+                (account_number, open_date, account_status, balance, fd_id, branch_id, saving_plan_id, created_at) 
+                VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) 
+                RETURNING account_id, account_number`,
+                [account_number, open_date, account_status, balance, fd_id || null, branch_id, saving_plan_id]
             );
 
             const account_id = accountResult.rows[0].account_id;
@@ -54,7 +53,10 @@ const accountModel = {
 
             await client.query('COMMIT');
             
-            return { account_id, account_number };
+            return {
+                account_id,
+                account_number: accountResult.rows[0].account_number
+            };
 
         } catch (error) {
             await client.query('ROLLBACK');
@@ -101,7 +103,8 @@ const accountModel = {
     // Get all accounts for a customer
     findByCustomerId: async (customer_id) => {
         const result = await db.query(
-            `select a.*, b.branch_name, sp.plan_type, sp.interest as interest_rate
+            `select a.*, b.branch_name, sp.plan_type, sp.interest as interest_rate,
+            (select count(*) from takes t2 where t2.account_id = a.account_id) as holder_count
             from accounts a join takes t on a.account_id = t.account_id
             left join branch b on a.branch_id = b.branch_id
             left join saving_plans sp on a.saving_plan_id = sp.saving_plan_id
@@ -141,6 +144,17 @@ const accountModel = {
         params.push(account_id);
 
         const result = await db.query(query, params);
+        return result.rows[0];
+    },
+
+    updateSavingPlan: async (account_id, saving_plan_id) => {
+        const result = await db.query(
+            `UPDATE accounts
+             SET saving_plan_id = $1
+             WHERE account_id = $2
+             RETURNING *`,
+            [saving_plan_id, account_id]
+        );
         return result.rows[0];
     },
 
@@ -184,6 +198,16 @@ const accountModel = {
             where t.account_id = $1`, [account_id]
         );
         return result.rows;
+    },
+
+    removeAccountHolder: async (account_id, customer_id) => {
+        const result = await db.query(
+            `DELETE FROM takes
+             WHERE account_id = $1 AND customer_id = $2
+             RETURNING takes_id`,
+            [account_id, customer_id]
+        );
+        return result.rows[0];
     },
 
     // check if customer owns the account

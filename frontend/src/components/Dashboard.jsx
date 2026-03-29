@@ -149,7 +149,7 @@ const Dashboard = () => {
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Actions</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {/* ========== AGENT & MANAGER ACTIONS ========== */}
-                    {hasRole(['Manager', 'Agent']) && (
+                    {hasRole(['Manager']) && (
                         <button
                             onClick={() => navigate('/customers')}
                             className="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg p-4 text-left transition"
@@ -164,8 +164,8 @@ const Dashboard = () => {
                             onClick={() => navigate('/customers')}
                             className="bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg p-4 text-left transition"
                         >
-                            <p className="font-semibold text-green-900">Create Customer</p>
-                            <p className="text-sm text-green-700">Add new customer</p>
+                            <p className="font-semibold text-green-900">Create/View Customer</p>
+                            <p className="text-sm text-green-700">Add or search new customer</p>
                         </button>
                     )}
 
@@ -174,8 +174,18 @@ const Dashboard = () => {
                             onClick={() => navigate('/accounts')}
                             className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg p-4 text-left transition"
                         >
-                            <p className="font-semibold text-emerald-900">Open Account</p>
-                            <p className="text-sm text-emerald-700">Open new bank account</p>
+                            <p className="font-semibold text-emerald-900">Open/View Account</p>
+                            <p className="text-sm text-emerald-700">Open or view bank account</p>
+                        </button>
+                    )}
+
+                    {hasRole(['Manager']) && (
+                        <button
+                            onClick={() => navigate('/accounts')}
+                            className="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg p-4 text-left transition"
+                        >
+                            <p className="font-semibold text-indigo-900">View All Accounts</p>
+                            <p className="text-sm text-indigo-700">View all accounts</p>
                         </button>
                     )}
 
@@ -185,11 +195,11 @@ const Dashboard = () => {
                             className="bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 rounded-lg p-4 text-left transition"
                         >
                             <p className="font-semibold text-yellow-900">Deposit/Withdraw</p>
-                            <p className="text-sm text-yellow-700">Process transactions</p>
+                            <p className="text-sm text-yellow-700">Process transactions and view balance</p>
                         </button>
                     )}
 
-                    {hasRole(['Manager', 'Agent']) && (
+                    {hasRole(['Manager']) && (
                         <button
                             onClick={() => navigate('/transactions')}
                             className="bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg p-4 text-left transition"
@@ -199,33 +209,23 @@ const Dashboard = () => {
                         </button>
                     )}
 
-                    {hasRole(['Manager', 'Agent']) && (
+                    {hasRole(['Agent']) && (
                         <button
-                            onClick={() => navigate('/accounts')}
-                            className="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg p-4 text-left transition"
+                            onClick={() => navigate('/fd-portfolio')}
+                            className="bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg p-4 text-left transition"
                         >
-                            <p className="font-semibold text-indigo-900">Manage Accounts</p>
-                            <p className="text-sm text-indigo-700">View all accounts</p>
+                            <p className="font-semibold text-amber-900">Create/View FD</p>
+                            <p className="text-sm text-amber-700">Open new fixed deposit and view existing ones</p>
                         </button>
                     )}
 
-                    {hasRole(['Manager', 'Agent']) && (
+                    {hasRole(['Manager']) && (
                         <button
                             onClick={() => navigate('/fd-portfolio')}
                             className="bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg p-4 text-left transition"
                         >
                             <p className="font-semibold text-orange-900">FD Portfolio</p>
                             <p className="text-sm text-orange-700">View fixed deposits</p>
-                        </button>
-                    )}
-
-                    {hasRole(['Agent']) && (
-                        <button
-                            onClick={() => navigate('/fd-portfolio')}
-                            className="bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg p-4 text-left transition"
-                        >
-                            <p className="font-semibold text-amber-900">Create FD</p>
-                            <p className="text-sm text-amber-700">Open new fixed deposit</p>
                         </button>
                     )}
 
@@ -249,6 +249,16 @@ const Dashboard = () => {
                         >
                             <p className="font-semibold text-pink-900">📋 Manage FD Plans</p>
                             <p className="text-sm text-pink-700">Create and edit FD products</p>
+                        </button>
+                    )}
+
+                    {hasRole(['Admin']) && (
+                        <button
+                            onClick={() => navigate('/savings-plans')}
+                            className="bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded-lg p-4 text-left transition"
+                        >
+                            <p className="font-semibold text-cyan-900">💼 Manage Savings Plans</p>
+                            <p className="text-sm text-cyan-700">Create and edit savings products</p>
                         </button>
                     )}
 

@@ -121,6 +121,18 @@ router.patch(
 );
 
 /**
+ * @route   PUT /api/accounts/:id/manage
+ * @desc    Manage existing account (plan, status, holders)
+ * @access  Agent
+ * @body    { saving_plan_id?, status?, holder_ids? }
+ */
+router.put(
+    '/:id/manage',
+    authorize('Agent'),
+    accountController.manageAccount
+);
+
+/**
  * @route   POST /api/accounts/:id/joint
  * @desc    Add a joint holder to existing account
  * @access  Agent

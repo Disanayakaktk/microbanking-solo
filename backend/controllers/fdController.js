@@ -182,6 +182,62 @@ const fdController = {
         }
     },
 
+    // Delete FD plan (Admin only)
+    deletePlan: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { replacement_plan_id } = req.query;
+
+            const existingPlan = await fdModel.getPlanById(id);
+            if (!existingPlan) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'FD plan not found'
+                });
+            }
+
+            const replacementPlanId = replacement_plan_id ? parseInt(replacement_plan_id) : null;
+            if (replacement_plan_id && Number.isNaN(replacementPlanId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Replacement FD plan ID must be a valid number'
+                });
+            }
+
+            const result = await fdModel.deletePlan(parseInt(id), replacementPlanId);
+
+            res.json({
+                success: true,
+                message: result.usageCount > 0
+                    ? `FD plan deleted successfully and ${result.usageCount} FD investments were moved to the replacement plan`
+                    : 'FD plan deleted successfully',
+                reassigned_count: result.usageCount
+            });
+        } catch (error) {
+            console.error('Delete FD plan error:', error);
+
+            const message = error.message || 'Server error while deleting FD plan';
+            const isBusinessRuleError =
+                message === 'FD plan not found' ||
+                message === 'Replacement FD plan not found' ||
+                message === 'Replacement FD plan is required because this plan is already used' ||
+                message === 'Replacement FD plan must be different from the plan being deleted';
+
+            if (isBusinessRuleError) {
+                const statusCode = message.includes('not found') ? 404 : 400;
+                return res.status(statusCode).json({
+                    success: false,
+                    message
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                message: 'Server error while deleting FD plan'
+            });
+        }
+    },
+
     // =============================================
     // FD INVESTMENT MANAGEMENT
     // =============================================
@@ -244,19 +300,29 @@ const fdController = {
 
         } catch (error) {
             console.error('Create FD investment error:', error);
-            
-            let message = 'Server error while creating FD investment';
-            if (error.message === 'Source account not found') {
-                message = 'Source account not found';
-            } else if (error.message === 'Insufficient balance in source account') {
-                message = 'Insufficient balance in source account';
-            } else if (error.message.includes('Minimum FD amount')) {
-                message = error.message;
+
+            const message = error.message || 'Server error while creating FD investment';
+            const isBusinessRuleError =
+                message === 'Source account not found' ||
+                message === 'Insufficient balance in source account' ||
+                message.includes('Minimum FD amount') ||
+                message.includes('Account already has an') ||
+                message === 'FD plan not found' ||
+                message === 'Account has an invalid FD link. Please contact administrator.';
+
+            if (isBusinessRuleError) {
+                const statusCode =
+                    message === 'Source account not found' || message === 'FD plan not found' ? 404 : 400;
+
+                return res.status(statusCode).json({
+                    success: false,
+                    message
+                });
             }
 
             res.status(500).json({
                 success: false,
-                message,
+                message: 'Server error while creating FD investment',
                 error: error.message
             });
         }

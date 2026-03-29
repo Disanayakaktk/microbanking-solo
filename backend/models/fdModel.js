@@ -82,6 +82,83 @@ const fdModel = {
         return result.rows[0];
     },
 
+    // Count how many FD investments currently reference a plan
+    countPlanUsage: async (plan_id) => {
+        const result = await db.query(
+            `SELECT COUNT(*)::int AS usage_count
+             FROM fixed_deposits
+             WHERE fd_plan_id = $1`,
+            [plan_id]
+        );
+        return result.rows[0]?.usage_count || 0;
+    },
+
+    // Delete FD plan with optional reassignment for existing FD investments
+    deletePlan: async (plan_id, replacement_plan_id = null) => {
+        const client = await db.pool.connect();
+
+        try {
+            await client.query('BEGIN');
+
+            const planCheck = await client.query(
+                'SELECT fd_plan_id FROM fd_plans WHERE fd_plan_id = $1',
+                [plan_id]
+            );
+
+            if (planCheck.rows.length === 0) {
+                throw new Error('FD plan not found');
+            }
+
+            const usageCheck = await client.query(
+                `SELECT COUNT(*)::int AS usage_count
+                 FROM fixed_deposits
+                 WHERE fd_plan_id = $1`,
+                [plan_id]
+            );
+
+            const usageCount = usageCheck.rows[0]?.usage_count || 0;
+
+            if (usageCount > 0) {
+                if (!replacement_plan_id) {
+                    throw new Error('Replacement FD plan is required because this plan is already used');
+                }
+
+                if (parseInt(replacement_plan_id) === parseInt(plan_id)) {
+                    throw new Error('Replacement FD plan must be different from the plan being deleted');
+                }
+
+                const replacementCheck = await client.query(
+                    'SELECT fd_plan_id FROM fd_plans WHERE fd_plan_id = $1',
+                    [replacement_plan_id]
+                );
+
+                if (replacementCheck.rows.length === 0) {
+                    throw new Error('Replacement FD plan not found');
+                }
+
+                await client.query(
+                    `UPDATE fixed_deposits
+                     SET fd_plan_id = $1
+                     WHERE fd_plan_id = $2`,
+                    [replacement_plan_id, plan_id]
+                );
+            }
+
+            await client.query(
+                'DELETE FROM fd_plans WHERE fd_plan_id = $1',
+                [plan_id]
+            );
+
+            await client.query('COMMIT');
+            return { usageCount };
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    },
+
     // =============================================
     // FD INVESTMENT MANAGEMENT
     // =============================================
@@ -104,21 +181,14 @@ const fdModel = {
 
             // Check if source account has sufficient balance
             const accountCheck = await client.query(
-                `SELECT a.balance,
-                        a.fd_id,
-                        fd.fd_status
+                `SELECT a.balance
                  FROM accounts a
-                 LEFT JOIN fixed_deposits fd ON a.fd_id = fd.fd_id
                  WHERE a.account_id = $1`,
                 [account_id]
             );
 
             if (accountCheck.rows.length === 0) {
                 throw new Error('Source account not found');
-            }
-
-            if (accountCheck.rows[0].fd_id && accountCheck.rows[0].fd_status !== 'closed') {
-                throw new Error('Account already has an active FD investment');
             }
 
             const currentBalance = parseFloat(accountCheck.rows[0].balance);
@@ -151,18 +221,13 @@ const fdModel = {
             // Create FD
             const fdResult = await client.query(
                 `INSERT INTO fixed_deposits 
-                 (fd_balance, auto_renewal, fd_status, open_date, fd_plan_id, created_at) 
-                 VALUES ($1, $2, 'active', $3, $4, NOW()) 
+                 (fd_balance, auto_renewal, fd_status, open_date, fd_plan_id, account_id, created_at) 
+                 VALUES ($1, $2, 'active', $3, $4, $5, NOW()) 
                  RETURNING fd_id`,
-                [fd_balance, auto_renewal || false, open_date, fd_plan_id]
+                [fd_balance, auto_renewal || false, open_date, fd_plan_id, account_id]
             );
 
             const fd_id = fdResult.rows[0].fd_id;
-
-            await client.query(
-                'UPDATE accounts SET fd_id = $1 WHERE account_id = $2',
-                [fd_id, account_id]
-            );
 
             // Record initial transaction (withdrawal from account)
             await client.query(
@@ -213,7 +278,7 @@ const fdModel = {
                      WHERE fd_id = fd.fd_id) as interest_calculations_count
              FROM fixed_deposits fd
              JOIN fd_plans fp ON fd.fd_plan_id = fp.fd_plan_id
-             LEFT JOIN accounts a ON a.fd_id = fd.fd_id
+             LEFT JOIN accounts a ON a.account_id = fd.account_id
              WHERE fd.fd_id = $1`,
             [fd_id]
         );
@@ -233,8 +298,8 @@ const fdModel = {
                      WHERE fd_id = fd.fd_id) as total_interest_earned
              FROM fixed_deposits fd
              JOIN fd_plans fp ON fd.fd_plan_id = fp.fd_plan_id
-                 JOIN accounts a ON a.fd_id = fd.fd_id
-             JOIN takes t ON a.account_id = t.account_id
+             JOIN accounts a ON a.account_id = fd.account_id
+             JOIN takes t ON t.account_id = fd.account_id
              WHERE t.customer_id = $1
              ORDER BY fd.open_date DESC`,
             [customer_id]
@@ -257,10 +322,10 @@ const fdModel = {
                             WHEN fp.fd_options = '3 years' THEN INTERVAL '3 years'
                             WHEN fp.fd_options = '5 years' THEN INTERVAL '5 years'
                         END) as maturity_date,
-                    (SELECT customer_id FROM takes WHERE account_id = a.account_id LIMIT 1) as customer_id
+                    (SELECT customer_id FROM takes WHERE account_id = fd.account_id LIMIT 1) as customer_id
              FROM fixed_deposits fd
              JOIN fd_plans fp ON fd.fd_plan_id = fp.fd_plan_id
-             LEFT JOIN accounts a ON a.fd_id = fd.fd_id
+             LEFT JOIN accounts a ON a.account_id = fd.account_id
              WHERE fd.fd_status = 'active'
              AND (fd.open_date + 
                  CASE 
@@ -289,9 +354,8 @@ const fdModel = {
             // Get old FD details
             const oldFD = await client.query(
                 `SELECT fd.auto_renewal,
-                        a.account_id
+                        fd.account_id
                  FROM fixed_deposits fd
-                 LEFT JOIN accounts a ON a.fd_id = fd.fd_id
                  WHERE fd.fd_id = $1`,
                 [old_fd_id]
             );
@@ -317,15 +381,10 @@ const fdModel = {
             // Create new FD
             const newFD = await client.query(
                 `INSERT INTO fixed_deposits 
-                 (fd_balance, auto_renewal, fd_status, open_date, fd_plan_id, created_at)
-                 VALUES ($1, $2, 'active', CURRENT_DATE, $3, NOW())
+                 (fd_balance, auto_renewal, fd_status, open_date, fd_plan_id, account_id, created_at)
+                 VALUES ($1, $2, 'active', CURRENT_DATE, $3, $4, NOW())
                  RETURNING fd_id`,
-                [new_principal, auto_renewal, new_plan_id]
-            );
-
-            await client.query(
-                'UPDATE accounts SET fd_id = $1 WHERE account_id = $2',
-                [newFD.rows[0].fd_id, account_id]
+                [new_principal, auto_renewal, new_plan_id, account_id]
             );
 
             // Record transaction (renewal)
@@ -381,11 +440,6 @@ const fdModel = {
                 [newBalance, account_id]
             );
 
-            await client.query(
-                'UPDATE accounts SET fd_id = NULL WHERE account_id = $1 AND fd_id = $2',
-                [account_id, fd_id]
-            );
-
             // Record transaction
             await client.query(
                 `INSERT INTO transactions 
@@ -432,11 +486,6 @@ const fdModel = {
             await client.query(
                 'UPDATE accounts SET balance = $1 WHERE account_id = $2',
                 [newBalance, account_id]
-            );
-
-            await client.query(
-                'UPDATE accounts SET fd_id = NULL WHERE account_id = $1 AND fd_id = $2',
-                [account_id, fd_id]
             );
 
             // Record transaction

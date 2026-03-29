@@ -9,6 +9,7 @@ import Accounts from './components/Accounts';
 import Transactions from './components/Transactions';
 import FDPortfolio from './components/FDPortfolio';  // For Manager/Agent
 import FDPlans from './components/FDPlans';          // For Admin only
+import SavingsPlans from './components/SavingsPlans'; // For Admin only
 import Reports from './components/Reports';
 import Employees from './components/Employees';    // For Admin only
 
@@ -61,6 +62,7 @@ function AppRoutes() {
                 <Route path="/transactions" element={<RoleRoute roles={['Manager', 'Agent']}><Transactions /></RoleRoute>} />
                 <Route path="/fd-portfolio" element={<RoleRoute roles={['Manager', 'Agent']}><FDPortfolio /></RoleRoute>} />
                 <Route path="/fd-plans" element={<RoleRoute roles={['Admin']}><FDPlans /></RoleRoute>} />
+                <Route path="/savings-plans" element={<RoleRoute roles={['Admin']}><SavingsPlans /></RoleRoute>} />
                 <Route path="/reports" element={<RoleRoute roles={['Manager']}><Reports /></RoleRoute>} />
                 <Route path="/employees" element={<RoleRoute roles={['Admin']}><Employees /></RoleRoute>} />
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -342,10 +342,18 @@ const transactionController = {
                 },
                 transactions: transactions.map(t => ({
                     transaction_id: t.transaction_id,
+                    transfer_id: t.transfer_id,
+                    account_number: t.account_number,
+                    counterparty_account_number: t.counterparty_account_number,
                     type: t.transaction_type,
                     amount: parseFloat(t.amount),
                     description: t.description,
                     timestamp: t.time,
+                    agent_branch: t.employee_branch_name || t.account_branch_name || 'N/A',
+                    channel: t.transfer_id ? 'Transfer' : 'Cash',
+                    transfer_direction: t.transfer_id
+                        ? (t.transaction_type === 'Withdrawal' ? 'Outbound' : 'Inbound')
+                        : '-',
                     employee: t.employee_first_name ? 
                         `${t.employee_first_name} ${t.employee_last_name}` : 
                         'System'

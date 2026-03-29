@@ -91,7 +91,8 @@ create table customers (
     nic varchar(30) not null unique,
     date_of_birth date not null,
     created_at timestamp default current_timestamp,
-    contact_id int references contact(contact_id) on delete set null
+    contact_id int references contact(contact_id) on delete set null,
+    branch_id int references branch(branch_id) on delete set null
 );
 
 -- Create fixed_deposits table
@@ -102,6 +103,7 @@ create table fixed_deposits (
     fd_status fd_status_enum not null,
     open_date date not null,
     created_at timestamp default current_timestamp,
+    account_id int,
     fd_plan_id int references fd_plans(fd_plan_id) on delete set null
 );
 
@@ -126,6 +128,7 @@ create table employees (
 -- Create accounts table
 create table accounts (
     account_id serial primary key,
+    account_number varchar(20) not null unique,
     open_date date not null,
     account_status account_status_enum not null,
     balance decimal(15, 2) not null,
@@ -135,6 +138,13 @@ create table accounts (
     saving_plan_id int references saving_plans(saving_plan_id) on delete set null,
     fd_id int references fixed_deposits(fd_id) on delete set null
 );
+
+ALTER TABLE fixed_deposits
+ADD CONSTRAINT fixed_deposits_account_id_fkey
+FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE SET NULL;
+
+-- Sequence used to link the two rows of a single transfer
+CREATE SEQUENCE transfer_group_seq START 1;
 
 
 -- 3. Create tables that depend on accounts and customers
@@ -176,6 +186,7 @@ create table fd_interest_calculation (
 -- Create Transaction table
 create table transactions (
     transaction_id serial primary key,
+    transfer_id bigint,
     transaction_type transaction_type_enum not null,
     amount decimal(10, 2) not null,
     time timestamp not null,
@@ -184,6 +195,8 @@ create table transactions (
     account_id int references accounts(account_id) on delete cascade,
     employee_id int references employees(employee_id)
 );
+
+CREATE INDEX idx_transactions_transfer_id ON transactions(transfer_id);
 
 
 -- 4. Create audit tables (depend on multiple tables)

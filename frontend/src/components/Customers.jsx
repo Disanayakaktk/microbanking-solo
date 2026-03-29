@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { customerAPI } from '../services/api';
+import { accountAPI, customerAPI } from '../services/api';
 
 const Customers = () => {
     const { hasRole, user } = useAuth();
@@ -16,11 +16,13 @@ const Customers = () => {
         gender: 'male',
         nic: '',
         date_of_birth: '',
+        branch_id: '',
         contact_no_1: '',
         contact_no_2: '',
         address: '',
         email: ''
     });
+    const [branches, setBranches] = useState([]);
     const [formError, setFormError] = useState('');
     const [formSuccess, setFormSuccess] = useState('');
     const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -31,10 +33,21 @@ const Customers = () => {
 
     // Load all customers if Manager
     useEffect(() => {
+        fetchBranches();
         if (canViewAll) {
             fetchAllCustomers();
         }
     }, []);
+
+    const fetchBranches = async () => {
+        try {
+            const response = await accountAPI.getBranches();
+            const data = Array.isArray(response.data) ? response.data : response.data?.branches || [];
+            setBranches(data);
+        } catch (error) {
+            console.error('Error fetching branches:', error);
+        }
+    };
 
     const fetchAllCustomers = async () => {
         try {
@@ -70,6 +83,7 @@ const Customers = () => {
             gender: 'male',
             nic: '',
             date_of_birth: '',
+            branch_id: '',
             contact_no_1: '',
             contact_no_2: '',
             address: '',
@@ -95,19 +109,24 @@ const Customers = () => {
         // Validate required fields
         if (!formData.first_name || !formData.last_name || !formData.gender || 
             !formData.nic || !formData.date_of_birth || !formData.contact_no_1 || 
-            !formData.address || !formData.email) {
+            !formData.address || !formData.email || !formData.branch_id) {
             setFormError('All required fields must be filled');
             return;
         }
 
         try {
+            const payload = {
+                ...formData,
+                branch_id: parseInt(formData.branch_id)
+            };
+
             if (editingCustomer) {
                 // Update existing customer
-                await customerAPI.update(editingCustomer.customer_id, formData);
+                await customerAPI.update(editingCustomer.customer_id, payload);
                 setFormSuccess('Customer updated successfully!');
             } else {
                 // Create new customer
-                await customerAPI.create(formData);
+                await customerAPI.create(payload);
                 setFormSuccess('Customer created successfully!');
             }
 
@@ -134,6 +153,7 @@ const Customers = () => {
             gender: customer.gender,
             nic: customer.nic,
             date_of_birth: customer.date_of_birth.split('T')[0],
+            branch_id: customer.branch_id ? String(customer.branch_id) : '',
             contact_no_1: customer.contact_no_1 || '',
             contact_no_2: customer.contact_no_2 || '',
             address: customer.address || '',
@@ -199,6 +219,7 @@ const Customers = () => {
                         <p className="text-gray-700">
                             {searchResult.first_name} {searchResult.last_name} - NIC: {searchResult.nic}
                         </p>
+                        <p className="text-gray-600 text-sm">Branch: {searchResult.branch_name || 'Not assigned'}</p>
                         <p className="text-gray-600 text-sm">Contact: {searchResult.contact_no_1}</p>
                     </div>
                 )}
@@ -222,6 +243,7 @@ const Customers = () => {
                                     <tr>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NIC</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -237,6 +259,9 @@ const Customers = () => {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-gray-600">
                                                 {customer.nic}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+                                                {customer.branch_name || '-'}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-gray-600">
                                                 {customer.contact_no_1}
@@ -351,6 +376,24 @@ const Customers = () => {
                                         required
                                     />
                                 </div>
+                            </div>
+
+                            <div className="mt-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Registered Branch *</label>
+                                <select
+                                    name="branch_id"
+                                    value={formData.branch_id}
+                                    onChange={handleInputChange}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    required
+                                >
+                                    <option value="">Select Branch</option>
+                                    {branches.map((branch) => (
+                                        <option key={branch.branch_id} value={branch.branch_id}>
+                                            {branch.branch_name}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div className="mt-4">

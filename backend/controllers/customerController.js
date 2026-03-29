@@ -6,14 +6,21 @@ const customerController = {
     createCustomer: async (req, res) => {
         try {
             const { first_name, last_name, gender, nic, date_of_birth,
-                    contact_no_1, contact_no_2, address, email } = req.body;
+                    contact_no_1, contact_no_2, address, email, branch_id } = req.body;
 
             // Validate required fields
             if (!first_name || !last_name || !gender || !nic || !date_of_birth || 
-                !contact_no_1 || !address || !email) {
+                !contact_no_1 || !address || !email || !branch_id) {
                 return res.status(400).json({
                     success: false,
                     message: 'Missing required fields'
+                });
+            }
+
+            if (Number.isNaN(Number(branch_id))) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Valid branch ID is required'
                 });
             }
 
@@ -41,7 +48,8 @@ const customerController = {
                 gender,
                 nic,
                 date_of_birth,
-                contact_id
+                contact_id,
+                branch_id: Number(branch_id)
             });
 
             // Fetch complete customer data with contact info
@@ -144,7 +152,7 @@ const customerController = {
         try {
             const { id } = req.params;
             const { first_name, last_name, gender, date_of_birth,
-                    contact_no_1, contact_no_2, address, email } = req.body;
+                    contact_no_1, contact_no_2, address, email, branch_id } = req.body;
 
             // Check if customer exists
             const existingCustomer = await customerModel.findById(id);
@@ -160,7 +168,8 @@ const customerController = {
                 first_name,
                 last_name,
                 gender,
-                date_of_birth
+                date_of_birth,
+                branch_id: branch_id ? Number(branch_id) : existingCustomer.branch_id
             });
 
             // Update contact info if contact exists

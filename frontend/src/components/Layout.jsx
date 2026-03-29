@@ -19,6 +19,7 @@ const Layout = () => {
         { to: '/transactions', label: 'Transactions', roles: ['Manager', 'Agent'] },
         { to: '/fd-portfolio', label: 'FD Portfolio', roles: ['Manager', 'Agent'] },
         { to: '/fd-plans', label: 'FD Plans', roles: ['Admin'] },
+        { to: '/savings-plans', label: 'Savings Plans', roles: ['Admin'] },
         { to: '/reports', label: 'Reports', roles: ['Manager'] },
         { to: '/employees', label: 'Employees', roles: ['Admin'] },
     ];

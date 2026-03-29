@@ -60,6 +60,20 @@ const accountController = {
                 });
             }
 
+            if (!mainCustomer.branch_id) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Customer branch is not set. Update customer profile before opening an account.'
+                });
+            }
+
+            if (Number(mainCustomer.branch_id) !== Number(branch_id)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Customer can only open an account in the registered branch'
+                });
+            }
+
             // ==== create account ==== //
             const accountData = {
                 open_date,
@@ -136,7 +150,8 @@ const accountController = {
                 success: true,
                 account: {
                     ...account,
-                    holders
+                    holders,
+                    account_type: holders.length > 1 ? 'Joint' : 'Single'
                 }
             });
         } catch (error) {
@@ -176,7 +191,8 @@ const accountController = {
                 success: true,
                 account: {
                     ...account,
-                    holders
+                    holders,
+                    account_type: holders.length > 1 ? 'Joint' : 'Single'
                 }
             });
         } catch (error) {
@@ -210,6 +226,10 @@ const accountController = {
             }
 
             const accounts = await accountModel.findByCustomerId(customerId);
+            const accountsWithType = accounts.map((account) => ({
+                ...account,
+                account_type: Number(account.holder_count) > 1 ? 'Joint' : 'Single'
+            }));
 
             res.json({
                 success: true,
@@ -218,7 +238,7 @@ const accountController = {
                     id: customer.customer_id,
                     name: `${customer.first_name} ${customer.last_name}`
                 },
-                accounts
+                accounts: accountsWithType
             });
         } catch (error) {
             console.error('Get customer accounts error:', error);
@@ -465,6 +485,7 @@ const accountController = {
                     return {
                         ...account,
                         holder_count: holders.length,
+                        account_type: holders.length > 1 ? 'Joint' : 'Single',
                         formatted_balance: `Rs. ${parseFloat(account.balance).toFixed(2)}`
                     };
                 })
@@ -482,6 +503,137 @@ const accountController = {
             res.status(500).json({
                 success: false,
                 message: 'Server error while fetching accounts'
+            });
+        }
+    },
+
+    // manage account settings (plan, status, holders)
+    manageAccount: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { saving_plan_id, status, holder_ids } = req.body;
+
+            if (!id || Number.isNaN(Number(id))) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Valid account ID is required'
+                });
+            }
+
+            const existingAccount = await accountModel.findById(id);
+            if (!existingAccount) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Account not found'
+                });
+            }
+
+            if (saving_plan_id !== undefined && Number.isNaN(Number(saving_plan_id))) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Valid saving plan ID is required'
+                });
+            }
+
+            let normalizedStatus;
+            if (status !== undefined) {
+                const lowered = String(status).toLowerCase();
+                if (!['active', 'inactive', 'closed'].includes(lowered)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Status must be active or inactive'
+                    });
+                }
+
+                normalizedStatus = lowered === 'inactive' ? 'closed' : lowered;
+
+                if (normalizedStatus === 'closed' && Number(existingAccount.balance) > 0) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Cannot set account inactive with positive balance. Withdraw all funds first.'
+                    });
+                }
+            }
+
+            // Update saving plan if provided
+            if (saving_plan_id !== undefined) {
+                await accountModel.updateSavingPlan(id, Number(saving_plan_id));
+            }
+
+            // Update status if provided
+            if (normalizedStatus !== undefined) {
+                const closedAt = normalizedStatus === 'closed' ? new Date() : null;
+                await accountModel.updateStatus(id, normalizedStatus, closedAt);
+            }
+
+            // Replace account holders if provided
+            if (holder_ids !== undefined) {
+                if (!Array.isArray(holder_ids)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'holder_ids must be an array of customer IDs'
+                    });
+                }
+
+                const normalizedHolderIds = [...new Set(holder_ids.map((value) => Number(value)).filter((value) => !Number.isNaN(value)))];
+
+                if (normalizedHolderIds.length === 0) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'At least one account holder is required'
+                    });
+                }
+
+                // Validate holder customer records and branch consistency
+                for (const holderId of normalizedHolderIds) {
+                    const customer = await customerModel.findById(holderId);
+                    if (!customer) {
+                        return res.status(400).json({
+                            success: false,
+                            message: `Customer ${holderId} not found`
+                        });
+                    }
+
+                    if (Number(customer.branch_id) !== Number(existingAccount.branch_id)) {
+                        return res.status(400).json({
+                            success: false,
+                            message: 'All holders must belong to the same branch as the account'
+                        });
+                    }
+                }
+
+                const currentHolders = await accountModel.getAccountHolders(id);
+                const currentIds = currentHolders.map((holder) => Number(holder.customer_id));
+
+                const toAdd = normalizedHolderIds.filter((holderId) => !currentIds.includes(holderId));
+                const toRemove = currentIds.filter((holderId) => !normalizedHolderIds.includes(holderId));
+
+                for (const holderId of toAdd) {
+                    await accountModel.addJointHolder(id, holderId);
+                }
+
+                for (const holderId of toRemove) {
+                    await accountModel.removeAccountHolder(id, holderId);
+                }
+            }
+
+            const updatedAccount = await accountModel.findById(id);
+            const updatedHolders = await accountModel.getAccountHolders(id);
+
+            return res.json({
+                success: true,
+                message: 'Account updated successfully',
+                account: {
+                    ...updatedAccount,
+                    holders: updatedHolders,
+                    account_type: updatedHolders.length > 1 ? 'Joint' : 'Single'
+                }
+            });
+        } catch (error) {
+            console.error('Manage account error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Server error while updating account'
             });
         }
     }

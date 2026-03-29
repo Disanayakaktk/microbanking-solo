@@ -218,9 +218,14 @@ const transactionModel = {
         try {
             await client.query('BEGIN');
 
+            const transferGroupResult = await client.query(
+                `SELECT nextval('transfer_group_seq') AS transfer_id`
+            );
+            const transfer_id = Number(transferGroupResult.rows[0].transfer_id);
+
             // Check if source account exists and is active
             const sourceCheck = await client.query(
-                'SELECT balance, account_status FROM accounts WHERE account_id = $1',
+                'SELECT balance, account_status, account_number FROM accounts WHERE account_id = $1',
                 [from_account_id]
             );
 
@@ -234,7 +239,7 @@ const transactionModel = {
 
             // Check if destination account exists and is active
             const destCheck = await client.query(
-                'SELECT account_status FROM accounts WHERE account_id = $1',
+                'SELECT account_status, account_number FROM accounts WHERE account_id = $1',
                 [to_account_id]
             );
 
@@ -286,17 +291,31 @@ const transactionModel = {
             // Record withdrawal transaction for source account
             await client.query(
                 `INSERT INTO transactions 
-                 (transaction_type, amount, time, description, account_id, employee_id, created_at) 
-                 VALUES ($1, $2, NOW(), $3, $4, $5, NOW())`,
-                ['Withdrawal', amount, description || 'Transfer to account ' + to_account_id, from_account_id, employee_id]
+                 (transfer_id, transaction_type, amount, time, description, account_id, employee_id, created_at) 
+                 VALUES ($1, $2, $3, NOW(), $4, $5, $6, NOW())`,
+                [
+                    transfer_id,
+                    'Withdrawal',
+                    amount,
+                    `Transfer to ${destCheck.rows[0].account_number}${description ? ` | ${description}` : ''}`,
+                    from_account_id,
+                    employee_id
+                ]
             );
 
             // Record deposit transaction for destination account
             await client.query(
                 `INSERT INTO transactions 
-                 (transaction_type, amount, time, description, account_id, employee_id, created_at) 
-                 VALUES ($1, $2, NOW(), $3, $4, $5, NOW())`,
-                ['Deposit', amount, description || 'Transfer from account ' + from_account_id, to_account_id, employee_id]
+                 (transfer_id, transaction_type, amount, time, description, account_id, employee_id, created_at) 
+                 VALUES ($1, $2, $3, NOW(), $4, $5, $6, NOW())`,
+                [
+                    transfer_id,
+                    'Deposit',
+                    amount,
+                    `Transfer from ${sourceCheck.rows[0].account_number}${description ? ` | ${description}` : ''}`,
+                    to_account_id,
+                    employee_id
+                ]
             );
 
             // Record in audit log
@@ -311,6 +330,7 @@ const transactionModel = {
             
             return {
                 reference,
+                transfer_id,
                 type: 'Transfer',
                 amount,
                 from_account: {
@@ -346,11 +366,23 @@ const transactionModel = {
     // =============================================
     getAccountTransactions: async (account_id, limit = 50, offset = 0) => {
         const result = await db.query(
-            `SELECT t.*, 
+            `SELECT t.*,
+                    a.account_number,
                     e.first_name as employee_first_name,
-                    e.last_name as employee_last_name
+                    e.last_name as employee_last_name,
+                    eb.branch_name as employee_branch_name,
+                      ab.branch_name as account_branch_name,
+                                        cp.account_number as counterparty_account_number
              FROM transactions t
+             JOIN accounts a ON t.account_id = a.account_id
+                  LEFT JOIN branch ab ON a.branch_id = ab.branch_id
              LEFT JOIN employees e ON t.employee_id = e.employee_id
+             LEFT JOIN branch eb ON e.branch_id = eb.branch_id
+                         LEFT JOIN transactions t_pair
+                             ON t.transfer_id IS NOT NULL
+                            AND t_pair.transfer_id = t.transfer_id
+                            AND t_pair.transaction_id <> t.transaction_id
+                         LEFT JOIN accounts cp ON cp.account_id = t_pair.account_id
              WHERE t.account_id = $1
              ORDER BY t.time DESC
              LIMIT $2 OFFSET $3`,

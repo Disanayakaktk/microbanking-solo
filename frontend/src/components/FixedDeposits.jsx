@@ -32,6 +32,17 @@ const FixedDeposits = () => {
     const [formSuccess, setFormSuccess] = useState('');
     const [interestHistory, setInterestHistory] = useState([]);
 
+    const uniquePlans = plans.filter((plan, index, self) => {
+        const planKey = `${plan.fd_options}|${plan.interest}|${plan.min_amount}|${plan.penalty_rate}`;
+        return index === self.findIndex((p) => `${p.fd_options}|${p.interest}|${p.min_amount}|${p.penalty_rate}` === planKey);
+    });
+
+    const eligibleAccounts = accounts.filter((account) => {
+        const isSingleAccount = account.account_type === 'Single' || Number(account.holder_count) <= 1;
+        const isActive = account.account_status === 'active';
+        return isSingleAccount && isActive;
+    });
+
     const canCreateFD = hasRole(['Agent', 'Manager', 'Admin']);
     const canViewAll = hasRole(['Manager', 'Admin']);
 
@@ -101,6 +112,7 @@ const FixedDeposits = () => {
             setSearchResult(null);
             setAccounts([]);
             setFds([]);
+            setFormData((prev) => ({ ...prev, account_id: '' }));
             return;
         }
 
@@ -108,11 +120,13 @@ const FixedDeposits = () => {
             const response = await customerAPI.getByNIC(searchNIC);
             setSearchResult(response.data.customer);
             setFormError('');
+            setFormData((prev) => ({ ...prev, account_id: '' }));
             fetchCustomerFDs(response.data.customer.customer_id);
         } catch (error) {
             setSearchResult(null);
             setAccounts([]);
             setFds([]);
+            setFormData((prev) => ({ ...prev, account_id: '' }));
             setFormError('Customer not found with this NIC');
         }
     };
@@ -127,6 +141,22 @@ const FixedDeposits = () => {
         });
         setFormError('');
         setFormSuccess('');
+    };
+
+    const openCreateModal = () => {
+        resetForm();
+        setSearchNIC('');
+        setSearchResult(null);
+        setAccounts([]);
+        setShowModal(true);
+    };
+
+    const closeCreateModal = () => {
+        setShowModal(false);
+        resetForm();
+        setSearchNIC('');
+        setSearchResult(null);
+        setAccounts([]);
     };
 
     const handleInputChange = (e) => {
@@ -301,10 +331,7 @@ const FixedDeposits = () => {
                 <h1 className="text-2xl font-bold text-gray-900">Fixed Deposits</h1>
                 {canCreateFD && (
                     <button
-                        onClick={() => {
-                            resetForm();
-                            setShowModal(true);
-                        }}
+                        onClick={openCreateModal}
                         className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                     >
                         + New Fixed Deposit
@@ -543,10 +570,7 @@ const FixedDeposits = () => {
                         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
                             <h2 className="text-xl font-semibold">New Fixed Deposit</h2>
                             <button
-                                onClick={() => {
-                                    setShowModal(false);
-                                    resetForm();
-                                }}
+                                onClick={closeCreateModal}
                                 className="text-gray-400 hover:text-gray-600 text-2xl"
                             >
                                 ×
@@ -567,9 +591,35 @@ const FixedDeposits = () => {
 
                             <div className="mb-4">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
-                                <div className="p-3 bg-gray-50 rounded-lg">
-                                    <p className="font-medium">{searchResult?.first_name} {searchResult?.last_name}</p>
-                                    <p className="text-sm text-gray-500">NIC: {searchResult?.nic}</p>
+                                <div className="space-y-3">
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={searchNIC}
+                                            onChange={(e) => setSearchNIC(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    searchCustomer();
+                                                }
+                                            }}
+                                            placeholder="Enter NIC and click Search"
+                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={searchCustomer}
+                                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                        >
+                                            Search
+                                        </button>
+                                    </div>
+                                    <div className="p-3 bg-gray-50 rounded-lg">
+                                        <p className="font-medium">
+                                            {searchResult ? `${searchResult.first_name} ${searchResult.last_name}` : 'No customer selected'}
+                                        </p>
+                                        <p className="text-sm text-gray-500">NIC: {searchResult?.nic || '-'}</p>
+                                    </div>
                                 </div>
                             </div>
 
@@ -581,14 +631,20 @@ const FixedDeposits = () => {
                                     onChange={handleInputChange}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     required
+                                    disabled={!searchResult}
                                 >
                                     <option value="">Select an account</option>
-                                    {accounts.map(account => (
+                                    {eligibleAccounts.map(account => (
                                         <option key={account.account_id} value={account.account_id}>
                                             {account.account_number || `ACC-${account.account_id}`} - Balance: {formatCurrency(account.balance)}
                                         </option>
                                     ))}
                                 </select>
+                                {searchResult && eligibleAccounts.length === 0 && (
+                                    <p className="mt-2 text-sm text-amber-700">
+                                        No eligible single active accounts found for this customer.
+                                    </p>
+                                )}
                             </div>
 
                             <div className="mb-4">
@@ -601,7 +657,7 @@ const FixedDeposits = () => {
                                     required
                                 >
                                     <option value="">Select FD plan</option>
-                                    {plans.map(plan => (
+                                    {uniquePlans.map(plan => (
                                         <option key={plan.fd_plan_id} value={plan.fd_plan_id}>
                                             {plan.fd_options} - {plan.interest}% p.a. (Min: {formatCurrency(plan.min_amount)})
                                         </option>
@@ -639,10 +695,7 @@ const FixedDeposits = () => {
                             <div className="mt-6 flex justify-end gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        setShowModal(false);
-                                        resetForm();
-                                    }}
+                                    onClick={closeCreateModal}
                                     className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                                 >
                                     Cancel

@@ -10,9 +10,14 @@ VALUES ('0771234567', 'Colombo', 'test@email.com');
 INSERT INTO customers (first_name, last_name, gender, nic, date_of_birth, contact_id, created_at) 
 VALUES ('John', 'Doe', 'male', '123456788V', '1995-05-15', 1, NOW());
 
--- Insert test saving plan
+-- Insert default saving plans
 INSERT INTO saving_plans (plan_type, interest, min_balance, created_at) 
-VALUES ('Adult', 4.0, 1000, NOW());
+VALUES
+('Children', 2.5, 1000, NOW()),
+('Teen', 2.75, 2000, NOW()),
+('Adult', 3.0, 4000, NOW()),
+('Senior', 3.5, 8000, NOW()),
+('Joint', 2.75, 5000, NOW());
 
 -- Insert default FD plans
 INSERT INTO fd_plans (fd_options, interest, min_amount, penalty_rate, created_at)

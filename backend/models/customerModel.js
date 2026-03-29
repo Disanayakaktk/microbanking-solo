@@ -3,14 +3,14 @@ import db from '../config/database.js';
 const customerModel = {
     // Create new customer
     create: async (customerData) => {
-        const { first_name, last_name, gender, nic, date_of_birth, contact_id } = customerData;
+        const { first_name, last_name, gender, nic, date_of_birth, contact_id, branch_id } = customerData;
         
         const result = await db.query(
             `INSERT INTO customers 
-             (first_name, last_name, gender, nic, date_of_birth, contact_id, created_at) 
-             VALUES ($1, $2, $3, $4, $5, $6, NOW()) 
+             (first_name, last_name, gender, nic, date_of_birth, contact_id, branch_id, created_at) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) 
              RETURNING *`,
-            [first_name, last_name, gender, nic, date_of_birth, contact_id]
+            [first_name, last_name, gender, nic, date_of_birth, contact_id, branch_id]
         );
         return result.rows[0];
     },
@@ -18,9 +18,10 @@ const customerModel = {
     // Get all customers
     findAll: async () => {
         const result = await db.query(
-            `SELECT c.*, cont.contact_no_1, cont.contact_no_2, cont.address, cont.email 
+            `SELECT c.*, cont.contact_no_1, cont.contact_no_2, cont.address, cont.email, b.branch_name
              FROM customers c
              LEFT JOIN contact cont ON c.contact_id = cont.contact_id
+             LEFT JOIN branch b ON c.branch_id = b.branch_id
              ORDER BY c.customer_id DESC`
         );
         return result.rows;
@@ -29,9 +30,10 @@ const customerModel = {
     // Get customer by ID
     findById: async (id) => {
         const result = await db.query(
-            `SELECT c.*, cont.contact_no_1, cont.contact_no_2, cont.address, cont.email 
+            `SELECT c.*, cont.contact_no_1, cont.contact_no_2, cont.address, cont.email, b.branch_name
              FROM customers c
              LEFT JOIN contact cont ON c.contact_id = cont.contact_id
+             LEFT JOIN branch b ON c.branch_id = b.branch_id
              WHERE c.customer_id = $1`,
             [id]
         );
@@ -41,9 +43,10 @@ const customerModel = {
     // Get customer by NIC
     findByNIC: async (nic) => {
         const result = await db.query(
-            `SELECT c.*, cont.contact_no_1, cont.contact_no_2, cont.address, cont.email 
+            `SELECT c.*, cont.contact_no_1, cont.contact_no_2, cont.address, cont.email, b.branch_name
              FROM customers c
              LEFT JOIN contact cont ON c.contact_id = cont.contact_id
+             LEFT JOIN branch b ON c.branch_id = b.branch_id
              WHERE c.nic = $1`,
             [nic]
         );
@@ -52,14 +55,14 @@ const customerModel = {
 
     // Update customer
     update: async (id, customerData) => {
-        const { first_name, last_name, gender, date_of_birth } = customerData;
+        const { first_name, last_name, gender, date_of_birth, branch_id } = customerData;
         
         const result = await db.query(
             `UPDATE customers 
-             SET first_name = $1, last_name = $2, gender = $3, date_of_birth = $4
-             WHERE customer_id = $5 
+             SET first_name = $1, last_name = $2, gender = $3, date_of_birth = $4, branch_id = $5
+             WHERE customer_id = $6 
              RETURNING *`,
-            [first_name, last_name, gender, date_of_birth, id]
+            [first_name, last_name, gender, date_of_birth, branch_id || null, id]
         );
         return result.rows[0];
     },

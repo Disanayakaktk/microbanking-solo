@@ -94,9 +94,12 @@ export const customerAPI = {
 
 // Account API (with event emission)
 export const accountAPI = {
-    getAll: () => api.get('/accounts'),
+    getAll: (params = {}) => api.get('/accounts', { params }),
     getById: (id) => api.get(`/accounts/${id}`),
+    getByAccountNumber: (accountNumber) => api.get(`/accounts/number/${accountNumber}`),
     getByCustomerId: (customerId) => api.get(`/accounts/customer/${customerId}`),
+    getSavingPlans: () => api.get('/saving-plans'),
+    getBranches: () => api.get('/branches'),
     getBalance: (id) => api.get(`/accounts/${id}/balance`),
     getSummary: (id) => api.get(`/accounts/${id}/summary`),
     create: async (data) => {
@@ -113,6 +116,11 @@ export const accountAPI = {
     update: async (id, data) => {
         const response = await api.put(`/accounts/${id}`, data);
         emitDataChange('accounts', { action: 'updated', data: response.data });
+        return response;
+    },
+    manage: async (id, data) => {
+        const response = await api.put(`/accounts/${id}/manage`, data);
+        emitDataChange('accounts', { action: 'managed', data: response.data });
         return response;
     },
     delete: async (id) => {
@@ -161,6 +169,9 @@ export const fdAPI = {
     getPlanById: (id) => api.get(`/fd/plans/${id}`),
     createPlan: (data) => api.post('/fd/plans', data),
     updatePlan: (id, data) => api.put(`/fd/plans/${id}`, data),
+    deletePlan: (id, replacementPlanId) => api.delete(`/fd/plans/${id}`, {
+        params: replacementPlanId ? { replacement_plan_id: replacementPlanId } : {}
+    }),
     getInvestments: () => api.get('/fd/investments'),
     getInvestmentById: (id) => api.get(`/fd/investments/${id}`),
     getInvestmentsByCustomer: (customerId) => api.get(`/fd/investments/customer/${customerId}`),
@@ -181,6 +192,17 @@ export const fdAPI = {
         return response;
     },
     getInterestHistory: (id) => api.get(`/fd/investments/${id}/interest`),
+};
+
+// Saving Plan API
+export const savingPlanAPI = {
+    getPlans: () => api.get('/saving-plans'),
+    getPlanById: (id) => api.get(`/saving-plans/${id}`),
+    createPlan: (data) => api.post('/saving-plans', data),
+    updatePlan: (id, data) => api.put(`/saving-plans/${id}`, data),
+    deletePlan: (id, replacementPlanId) => api.delete(`/saving-plans/${id}`, {
+        params: replacementPlanId ? { replacement_plan_id: replacementPlanId } : {}
+    }),
 };
 
 // Employee API (Admin only)
