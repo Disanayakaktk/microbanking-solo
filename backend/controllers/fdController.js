@@ -456,6 +456,39 @@ const fdController = {
         }
     },
 
+    // Get all FD investments (Agent/Manager)
+    getAllInvestments: async (req, res) => {
+        try {
+            const fds = await fdModel.getAllInvestments();
+
+            const enhancedFDs = fds.map(fd => {
+                const maturityDate = new Date(fd.maturity_date);
+                const today = new Date();
+                const daysRemaining = Math.ceil((maturityDate - today) / (1000 * 60 * 60 * 24));
+
+                return {
+                    ...fd,
+                    maturity_date: maturityDate.toISOString().split('T')[0],
+                    days_remaining: daysRemaining > 0 ? daysRemaining : 0,
+                    is_matured: daysRemaining <= 0 && fd.fd_status === 'active'
+                };
+            });
+
+            res.json({
+                success: true,
+                count: enhancedFDs.length,
+                fds: enhancedFDs
+            });
+
+        } catch (error) {
+            console.error('Get all FD investments error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Server error while fetching FD investments'
+            });
+        }
+    },
+
     // =============================================
     // FD ACTIONS (Agent only - MANUAL)
     // =============================================

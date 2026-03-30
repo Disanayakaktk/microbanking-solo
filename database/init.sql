@@ -104,6 +104,7 @@ create table fixed_deposits (
     open_date date not null,
     created_at timestamp default current_timestamp,
     account_id int,
+    customer_id int references customers(customer_id) on delete set null,
     fd_plan_id int references fd_plans(fd_plan_id) on delete set null
 );
 

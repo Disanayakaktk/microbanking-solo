@@ -221,10 +221,10 @@ const fdModel = {
             // Create FD
             const fdResult = await client.query(
                 `INSERT INTO fixed_deposits 
-                 (fd_balance, auto_renewal, fd_status, open_date, fd_plan_id, account_id, created_at) 
-                 VALUES ($1, $2, 'active', $3, $4, $5, NOW()) 
+                 (fd_balance, auto_renewal, fd_status, open_date, fd_plan_id, account_id, customer_id, created_at) 
+                 VALUES ($1, $2, 'active', $3, $4, $5, $6, NOW()) 
                  RETURNING fd_id`,
-                [fd_balance, auto_renewal || false, open_date, fd_plan_id, account_id]
+                [fd_balance, auto_renewal || false, open_date, fd_plan_id, account_id, customer_id]
             );
 
             const fd_id = fdResult.rows[0].fd_id;
@@ -299,8 +299,9 @@ const fdModel = {
              FROM fixed_deposits fd
              JOIN fd_plans fp ON fd.fd_plan_id = fp.fd_plan_id
              JOIN accounts a ON a.account_id = fd.account_id
-             JOIN takes t ON t.account_id = fd.account_id
-             WHERE t.customer_id = $1
+             LEFT JOIN takes t ON t.account_id = fd.account_id
+             WHERE fd.customer_id = $1
+                OR (fd.customer_id IS NULL AND t.customer_id = $1)
              ORDER BY fd.open_date DESC`,
             [customer_id]
         );
@@ -340,6 +341,69 @@ const fdModel = {
         return result.rows;
     },
 
+    // Get all FD investments with plan/account details
+    getAllInvestments: async () => {
+        const result = await db.query(
+            `SELECT fd.*, 
+                    fp.fd_options,
+                    fp.interest as interest_rate,
+                    linked_account.account_id,
+                    linked_account.account_number,
+                    (fd.open_date + 
+                        CASE 
+                            WHEN fp.fd_options = '6 months' THEN INTERVAL '6 months'
+                            WHEN fp.fd_options = '1 year' THEN INTERVAL '1 year'
+                            WHEN fp.fd_options = '3 years' THEN INTERVAL '3 years'
+                            WHEN fp.fd_options = '5 years' THEN INTERVAL '5 years'
+                        END) as maturity_date,
+                    customer.customer_id,
+                    customer.customer_name,
+                    customer.customer_nic
+             FROM fixed_deposits fd
+             JOIN fd_plans fp ON fd.fd_plan_id = fp.fd_plan_id
+             LEFT JOIN LATERAL (
+                 SELECT a.account_id, a.account_number
+                 FROM accounts a
+                 WHERE a.account_id = fd.account_id
+                    OR (fd.account_id IS NULL AND a.fd_id = fd.fd_id)
+                    OR (
+                        fd.account_id IS NULL
+                        AND a.fd_id IS NULL
+                        AND a.account_id = (
+                            SELECT t.account_id
+                            FROM transactions t
+                            WHERE t.transaction_type = 'Withdrawal'
+                              AND t.description = ('FD Investment #' || fd.fd_id)
+                              AND t.account_id IS NOT NULL
+                            ORDER BY t.transaction_id DESC
+                            LIMIT 1
+                        )
+                    )
+                 ORDER BY CASE WHEN a.account_id = fd.account_id THEN 0 ELSE 1 END
+                 LIMIT 1
+             ) linked_account ON true
+             LEFT JOIN LATERAL (
+                 SELECT c.customer_id,
+                        TRIM(c.first_name || ' ' || c.last_name) AS customer_name,
+                        c.nic AS customer_nic
+                 FROM customers c
+                 WHERE c.customer_id = COALESCE(
+                     fd.customer_id,
+                     (
+                         SELECT t.customer_id
+                         FROM takes t
+                         WHERE t.account_id = linked_account.account_id
+                         ORDER BY t.takes_id ASC
+                         LIMIT 1
+                     )
+                 )
+                 LIMIT 1
+             ) customer ON true
+             ORDER BY fd.open_date DESC, fd.fd_id DESC`
+        );
+        return result.rows;
+    },
+
     // =============================================
     // FD ACTIONS (Agent only - Manual)
     // =============================================
@@ -354,7 +418,8 @@ const fdModel = {
             // Get old FD details
             const oldFD = await client.query(
                 `SELECT fd.auto_renewal,
-                        fd.account_id
+                        fd.account_id,
+                        fd.customer_id
                  FROM fixed_deposits fd
                  WHERE fd.fd_id = $1`,
                 [old_fd_id]
@@ -364,7 +429,7 @@ const fdModel = {
                 throw new Error('FD not found');
             }
 
-            const { account_id, auto_renewal } = oldFD.rows[0];
+            const { account_id, auto_renewal, customer_id } = oldFD.rows[0];
 
             if (!account_id) {
                 throw new Error('Linked account not found for FD');
@@ -381,10 +446,10 @@ const fdModel = {
             // Create new FD
             const newFD = await client.query(
                 `INSERT INTO fixed_deposits 
-                 (fd_balance, auto_renewal, fd_status, open_date, fd_plan_id, account_id, created_at)
-                 VALUES ($1, $2, 'active', CURRENT_DATE, $3, $4, NOW())
+                 (fd_balance, auto_renewal, fd_status, open_date, fd_plan_id, account_id, customer_id, created_at)
+                 VALUES ($1, $2, 'active', CURRENT_DATE, $3, $4, $5, NOW())
                  RETURNING fd_id`,
-                [new_principal, auto_renewal, new_plan_id, account_id]
+                [new_principal, auto_renewal, new_plan_id, account_id, customer_id]
             );
 
             // Record transaction (renewal)
@@ -510,6 +575,7 @@ const fdModel = {
     // AUTOMATIC MONTHLY INTEREST CALCULATION
     // (Called by scheduler, not by API)
     // =============================================
+
     calculateMonthlyInterest: async () => {
         const client = await db.pool.connect();
         

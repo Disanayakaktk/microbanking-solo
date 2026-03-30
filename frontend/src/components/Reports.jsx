@@ -69,7 +69,7 @@ const Reports = () => {
 
     const fetchFDReport = async () => {
         try {
-            const response = await fdAPI.getMaturing(90);
+            const response = await fdAPI.getInvestments();
             setFdReport(response.data.fds || []);
         } catch (error) {
             console.error('Error fetching FD report:', error);
@@ -517,7 +517,10 @@ const Reports = () => {
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">FD ID</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Customer</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Customer Name</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">NIC</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Savings Account No</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Auto Renew</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Plan</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Amount</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Interest Rate</th>
@@ -530,7 +533,16 @@ const Reports = () => {
                                 {fdReport.map((fd) => (
                                     <tr key={fd.fd_id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 text-sm font-medium">#{fd.fd_id}</td>
-                                        <td className="px-6 py-4 text-sm">Customer #{fd.customer_id}</td>
+                                        <td className="px-6 py-4 text-sm">{fd.customer_name || '-'}</td>
+                                        <td className="px-6 py-4 text-sm">{fd.customer_nic || '-'}</td>
+                                        <td className="px-6 py-4 text-sm">{fd.account_number || '-'}</td>
+                                        <td className="px-6 py-4 text-sm">
+                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                fd.auto_renewal ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'
+                                            }`}>
+                                                {fd.auto_renewal ? 'Yes' : 'No'}
+                                            </span>
+                                        </td>
                                         <td className="px-6 py-4 text-sm">{fd.fd_options}</td>
                                         <td className="px-6 py-4 text-sm font-medium">{formatCurrency(fd.fd_balance)}</td>
                                         <td className="px-6 py-4 text-sm">{fd.interest_rate}%</td>

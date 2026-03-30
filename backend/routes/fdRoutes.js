@@ -62,6 +62,13 @@ router.delete('/plans/:id', authorize('Admin'), fdController.deletePlan);
 router.post('/investments', authorize('Agent'), fdController.createInvestment);
 
 /**
+ * @route   GET /api/fd/investments
+ * @desc    Get all FD investments
+ * @access  Agent, Manager
+ */
+router.get('/investments', authorize('Agent', 'Manager'), fdController.getAllInvestments);
+
+/**
  * @route   GET /api/fd/investments/customer/:customerId
  * @desc    Get all FDs for a specific customer
  * @access  Agent, Manager

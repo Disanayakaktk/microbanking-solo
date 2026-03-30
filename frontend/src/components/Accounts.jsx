@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { accountAPI, customerAPI } from '../services/api';
 
@@ -53,21 +53,18 @@ const Accounts = () => {
     const canViewAll = hasRole(['Manager']);
     const canCreate = hasRole(['Agent']);
 
-    // Load data on mount
+    // Load data on mount and whenever role access changes
     useEffect(() => {
         fetchAccounts();
         fetchReferenceData();
-    }, [filters]);
+    }, [canViewAll]);
 
     const fetchAccounts = async () => {
         try {
             setLoading(true);
             let response;
             if (canViewAll) {
-                const params = {};
-                if (filters.status) params.status = filters.status;
-                if (filters.branch_id) params.branch_id = filters.branch_id;
-                response = await accountAPI.getAll(params);
+                response = await accountAPI.getAll();
             } else {
                 // For agents, get accounts they have access to (by customer search)
                 response = { data: { accounts: [] } };
@@ -481,6 +478,33 @@ const Accounts = () => {
         return <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">Closed</span>;
     };
 
+    const filteredAccounts = useMemo(() => {
+        if (!canViewAll) {
+            return [];
+        }
+
+        return accounts.filter((account) => {
+            const statusValue = String(account.account_status || '').toLowerCase();
+            const statusMatch = !filters.status || statusValue === filters.status;
+
+            if (!filters.branch_id) {
+                return statusMatch;
+            }
+
+            const directBranchMatch = String(account.branch_id || '') === String(filters.branch_id);
+            if (directBranchMatch) {
+                return statusMatch;
+            }
+
+            const matchedBranch = branches.find(
+                (branch) => String(branch.branch_name || '').toLowerCase() === String(account.branch_name || '').toLowerCase()
+            );
+            const branchMatchByName = matchedBranch && String(matchedBranch.branch_id) === String(filters.branch_id);
+
+            return statusMatch && Boolean(branchMatchByName);
+        });
+    }, [accounts, branches, canViewAll, filters]);
+
     return (
         <div className="p-6">
             {/* Account Search Tools */}
@@ -664,7 +688,7 @@ const Accounts = () => {
 
                     {loading ? (
                         <div className="p-6 text-center text-gray-500">Loading...</div>
-                    ) : accounts.length === 0 ? (
+                    ) : filteredAccounts.length === 0 ? (
                         <div className="p-6 text-center text-gray-500">No accounts found</div>
                     ) : (
                         <div className="overflow-x-auto">
@@ -682,7 +706,7 @@ const Accounts = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {accounts.map((account) => (
+                                    {filteredAccounts.map((account) => (
                                         <tr key={account.account_id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
                                                 {account.account_number || String(account.account_id)}

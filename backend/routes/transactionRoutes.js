@@ -26,7 +26,7 @@ router.post(
 /**
  * @route   POST /api/transactions/withdraw
  * @desc    Withdraw money from an account
- * @access  Agent
+ * @access  Agent only
  * @body    { account_id, amount, description (optional) }
  */
 router.post(
@@ -38,7 +38,7 @@ router.post(
 /**
  * @route   POST /api/transactions/transfer
  * @desc    Transfer money between accounts
- * @access  Agent
+ * @access  Agent only
  * @body    { from_account_id, to_account_id, amount, description (optional) }
  */
 router.post(

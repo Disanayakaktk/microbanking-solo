@@ -221,6 +221,16 @@ const Customers = () => {
                         </p>
                         <p className="text-gray-600 text-sm">Branch: {searchResult.branch_name || 'Not assigned'}</p>
                         <p className="text-gray-600 text-sm">Contact: {searchResult.contact_no_1}</p>
+                        {canEdit && (
+                            <div className="mt-3">
+                                <button
+                                    onClick={() => handleEdit(searchResult)}
+                                    className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm"
+                                >
+                                    Edit
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -246,7 +256,9 @@ const Customers = () => {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        {canEdit && (
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
@@ -269,22 +281,24 @@ const Customers = () => {
                                             <td className="px-6 py-4 whitespace-nowrap text-gray-600">
                                                 {customer.email}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <button
-                                                    onClick={() => handleEdit(customer)}
-                                                    className="text-blue-600 hover:text-blue-800 mr-3"
-                                                >
-                                                    Edit
-                                                </button>
-                                                {hasRole(['Admin']) && (
+                                            {canEdit && (
+                                                <td className="px-6 py-4 whitespace-nowrap">
                                                     <button
-                                                        onClick={() => handleDelete(customer)}
-                                                        className="text-red-600 hover:text-red-800"
+                                                        onClick={() => handleEdit(customer)}
+                                                        className="text-blue-600 hover:text-blue-800 mr-3"
                                                     >
-                                                        Delete
+                                                        Edit
                                                     </button>
-                                                )}
-                                            </td>
+                                                    {hasRole(['Admin']) && (
+                                                        <button
+                                                            onClick={() => handleDelete(customer)}
+                                                            className="text-red-600 hover:text-red-800"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>

@@ -25,7 +25,7 @@ const Transactions = () => {
     const [balance, setBalance] = useState(null);
     const [pagination, setPagination] = useState({ limit: 20, offset: 0, total: 0 });
 
-    const canPerformTransactions = hasRole(['Agent', 'Manager', 'Admin']);
+    const canPerformTransactions = hasRole(['Agent']);
 
     // Load accounts when a customer is selected
     useEffect(() => {
